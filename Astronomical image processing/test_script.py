@@ -205,6 +205,18 @@ dataFrame.sorted_data
 
 data_a.magnitude_graph("data/star_galx_test.xlsx")
 
-# %%
+# %% Test 13:
+
+apperture_radius = 4
+no_std = 3
+
+
+dataFrame = dataf.DataGeneration(fits.open("data/small_test_data.fits"))
+
+dataFrame.source_detection(apperture_radius,no_std)
+dataFrame.sorted_data
+(dataFrame.sorted_data).to_excel("data/output_test_13.xlsx")  
+hdu = fits.PrimaryHDU(dataFrame.mask)
+hdu.writeto('test13.fits')
 
 # %%

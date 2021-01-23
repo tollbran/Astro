@@ -19,12 +19,15 @@ dataFrame = dataf.DataGeneration(fits.open("data/A1_edit_final.fits"))
 
 #dataFrame.remove_blooming(dataFrame.astro_flux)
 #dataFrame.fill_mask()
+
+#dataFrame.convert_2d_1d()
 #histo.gen_histogram(dataFrame.get_raw_data())
 
+#%%
         
 if input('Would you like to remove the specified data in the spreadsheet from your data? y/n :') == 'y':
-    dataFrame.cover_circle('data/suns_remove.xlsx')
-    dataFrame.crop_edges(400,600,1000,1200)
+    dataFrame.cover_circle('data/file_1.xlsx')
+    #dataFrame.crop_edges(0,2000,0,2000)
 
 while input('Would you like to remove a bleeding effect? y/n') == 'y':
     x_inp_one = int(input('What is the 1st x coord?'))
@@ -33,19 +36,29 @@ while input('Would you like to remove a bleeding effect? y/n') == 'y':
     y_inp_two = int(input('What is the distance between the next  y coord?'))
     dataFrame.cover_rectangle((y_inp_one,x_inp_one),(y_inp_two,x_inp_two))
 
+hdu = fits.PrimaryHDU(dataFrame.astro_flux)
+hdu.writeto('data/file.fits')
 # %%
     
 #Variables for you to set
-apperture_radius = 2.1
-no_std = 3
+#apperture_radius = 6
+no_std = 5
 
-#dataFrame.crop_edges(0,2056,0,2000)
+dataFrame.crop_edges(0,400,0,2000)
 
-dataFrame.source_detection(apperture_radius,no_std)
+hdu = fits.PrimaryHDU(dataFrame.astro_flux)
+hdu.writeto('data/medium_data.fits')
+
+#dataFrame = dataf.DataGeneration(fits.open("data/file.fits"))
+
+dataFrame.source_detection(no_std)
 hdu = fits.PrimaryHDU(dataFrame.mask)
-hdu.writeto('mask.fits')
-(dataFrame.sorted_data).to_excel("output_half.xlsx")  
+hdu.writeto('data/medium_mask.fits')
+(dataFrame.sorted_data).to_excel("data/medium.xlsx")  
 
 # %%
+data_a.magnitude_graph_cumu("data/medium.xlsx")
+#data_a.magnitude_graph_cumu("data/test_4std.xlsx")
+#data_a.magnitude_graph_cumu("data/test_5std.xlsx")
+#data_a.magnitude_graph("data/test_3std.xlsx")
 
-data_a.magnitude_graph("output_half.xlsx")

@@ -22,11 +22,11 @@ class DataGeneration:
         self.raw_data = []
         self.apperture_points = []
         self.mask = sp.zeros((len(self.astro_flux),len(self.astro_flux[0])), dtype=int)
-        self.sorted_data = pd.DataFrame(columns=['Flux value','x position','y position'])
+        self.sorted_data = pd.DataFrame(columns=['Flux value','Instrumental Magnitude','x position','y position','Apperture radius'])
         #Set for cropping a image could remove these
         self.threshold = 6000 # cut off for deleting data
-        self.background_flux = 3430 # settting it to this for now
-        self.standard_error = 10
+        self.background_flux = 3420 # settting it to this for now
+        self.standard_error = 13
         
     def get_raw_data(self):
         
@@ -127,7 +127,20 @@ class DataGeneration:
             
             y_counter +=1
             
-    def source_detection(self,apperture_radius, no_std):
+    def calculated_background(self):
+          '''
+          Generates an apperture and uses it to find the mean
+          local background flux
+          '''
+          rr_apperture_background, cc_apperture_backgrond = circle(center_apperture,center_apperture,radius)
+          apperture = sp.zeros((2*center_apperture,2*center_apperture))
+          apperture[rr_apperture,cc_apperture] = 1
+          apperture_pixel_size = len(sp.where(apperture==1)[0])
+          y_counter = 0
+          x_scan_start = x_cord - center_apperture
+          y_scan_start = y_cord + center_apperture
+            
+    def source_detection(self,no_std):
         
         '''
         Goes through a !d array storing all the fluxes in the image in order. Finds the position of these fluxes in the file.
@@ -138,60 +151,77 @@ class DataGeneration:
         self.fill_inital_mask()
         self.convert_2d_1d()
         
-        position = 0
-        center_apperture = 4
+        #center_apperture = 6
+        entries =0
         #Used to center the circular apperture in its own 2d array
         
-        while self.raw_data[position] > (self.background_flux + no_std*self.standard_error):
-            circ_center_val = self.raw_data[position]
+        while self.raw_data[0] > (self.background_flux + no_std*self.standard_error):
+            circ_center_val = self.raw_data[0]
             circ_center_pos = sp.where(self.astro_flux==circ_center_val)
             checker = 0
             while checker < len(circ_center_pos[0]):
-                rr_apperture, cc_apperture = circle(center_apperture,center_apperture,apperture_radius)
-                apperture = sp.zeros((10,10))
-                apperture[rr_apperture,cc_apperture] = 1
-                apperture_pixel_size = len(sp.where(apperture==1)[0])
                 y_cord = circ_center_pos[1][checker]
                 x_cord = circ_center_pos[0][checker]
                 flux_value = 0
                 if 20 < x_cord < (len(self.astro_flux) -20): #4113
                     if 20 < y_cord < (len(self.astro_flux[0])-20):
                         if self.mask[x_cord][y_cord] == 0:
+                            radius=0
+                            current_flux = (self.astro_flux[x_cord][y_cord])
+                            while current_flux > (self.background_flux+13):
+                                if ((y_cord + radius) == len(self.astro_flux[0]-1)):
+                                    current_flux = 1 #Breakout clause for now
+                                else:
+                                    current_flux = self.astro_flux[x_cord][(y_cord + radius)]
+                                radius+=1
                             #checking not already been counted
+                            center_apperture = 2*radius
+                            rr_apperture, cc_apperture = circle(center_apperture,center_apperture,radius)
+                            apperture = sp.zeros((2*center_apperture,2*center_apperture))
+                            apperture[rr_apperture,cc_apperture] = 1
+                            apperture_pixel_size = len(sp.where(apperture==1)[0])
                             y_counter = 0
                             x_scan_start = x_cord - center_apperture
                             y_scan_start = y_cord + center_apperture
                             #Sets the start points in the data file for the 'scan'
-                            
-                            while y_counter < len(apperture):
-                                x_counter = 0
-                                x_scan_start = x_cord - center_apperture
-                                while x_counter < len(apperture[0]):
-                                    if apperture[y_counter][x_counter]==1:
-                                        if self.astro_flux[x_scan_start][y_scan_start] ==1:
-                                            flux_value += self.background_flux + (random.random()*self.standard_error)
-                                        flux_value += self.astro_flux[x_scan_start][y_scan_start]
+                            if y_scan_start < len(self.astro_flux[0]):
+                                while y_counter < len(apperture):
+                                    x_counter = 0
+                                    x_scan_start = x_cord - center_apperture
+                                    while x_counter < len(apperture[0]):
+                                        if apperture[y_counter][x_counter]==1:
+                                            if self.astro_flux[x_scan_start][y_scan_start] ==1:
+                                                flux_value += self.background_flux + (random.random()*self.standard_error)
+                                            flux_value += self.astro_flux[x_scan_start][y_scan_start]
+                                            
+                                        x_counter +=1
+                                        x_scan_start +=1
                                         
-                                    x_counter +=1
-                                    x_scan_start +=1
-                                    
-                                y_counter+=1
-                                y_scan_start -=1
-                            
-                            average_flux = flux_value - (apperture_pixel_size * self.background_flux)
-                            #Stores the data in a panda dataframe.
-                            self.sorted_data.loc[-1] =  [average_flux,x_cord,y_cord]
-                            self.sorted_data.index =  self.sorted_data.index + 1  
-                            self.sorted_data =  self.sorted_data.sort_index()
-                            #Creates a circle in the mask to show that have been delt with
-                            rr, cc = circle(x_cord,y_cord,apperture_radius)
-                            self.mask[rr,cc] = 1
-                            self.apperture_points.append(self.raw_data[position])
-                            
+                                    y_counter+=1
+                                    y_scan_start -=1
+                                
+                                #Sets the start points in the data file for the 'scan'
+                                #background_flux=self.calculated_background()
+                                #Finds background flux
+                                average_flux = (flux_value - (apperture_pixel_size * self.background_flux))
+                                if radius >= 3:
+                                    if average_flux > 0:
+                                        #Removing fluctuations
+                                        mag = -2.5*sp.log10(average_flux) +25.3
+                                        #Stores the data in a panda dataframe.
+                                        self.sorted_data.loc[-1] =  [average_flux,mag,y_cord,x_cord,radius]
+                                        self.sorted_data.index =  self.sorted_data.index + 1  
+                                        self.sorted_data =  self.sorted_data.sort_index()
+                                        entries +=1
+                                        #Creates a circle in the mask to show that have been delt with
+                                rr, cc = circle(x_cord,y_cord,radius)
+                                self.mask[rr,cc] = 1
+                                self.apperture_points.append(self.raw_data[0])
+                                print("x: %d, y: %d entires: %d Position: %d" % (x_cord,y_cord,entries,self.raw_data[0]))
+            
                 checker += 1
-            print(self.raw_data[position])
-            print("Position is: %d " % (position))
-            position += 1
+            self.raw_data = sp.delete(self.raw_data, sp.where(self.raw_data == self.raw_data[0]))
+   
             
             
             
