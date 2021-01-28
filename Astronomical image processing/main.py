@@ -12,18 +12,15 @@ import data_analysis as data_a
 from astropy.io import fits 
 
 
-# %%
-
+# %% Run this to generates dataFrame
 dataFrame = dataf.DataGeneration(fits.open("data/A1_edit_final.fits"))
 
 
-#dataFrame.remove_blooming(dataFrame.astro_flux)
-#dataFrame.fill_mask()
-
+hdu = fits.open('data/A1_mosaic.fits')
 #dataFrame.convert_2d_1d()
 #histo.gen_histogram(dataFrame.get_raw_data())
 
-#%%
+#%% Editing
         
 if input('Would you like to remove the specified data in the spreadsheet from your data? y/n :') == 'y':
     dataFrame.cover_circle('data/file_1.xlsx')
@@ -38,26 +35,25 @@ while input('Would you like to remove a bleeding effect? y/n') == 'y':
 
 hdu = fits.PrimaryHDU(dataFrame.astro_flux)
 hdu.writeto('data/file.fits')
-# %%
+# %% Main
     
 #Variables for you to set
-#apperture_radius = 6
-no_std = 5
+no_std = 4
 
-dataFrame.crop_edges(0,400,0,2000)
+#dataFrame.crop_edges(176,260,360,430)
+#hdu = fits.PrimaryHDU(dataFrame.astro_flux)
+#hdu.writeto('data/test/file.fits')
 
-hdu = fits.PrimaryHDU(dataFrame.astro_flux)
-hdu.writeto('data/medium_data.fits')
+dataFrame = dataf.DataGeneration(fits.open("data/A1_edit_final_v1.fits"))
 
-#dataFrame = dataf.DataGeneration(fits.open("data/file.fits"))
-
-dataFrame.source_detection(no_std)
+dataFrame.source_detection(no_std,12)
 hdu = fits.PrimaryHDU(dataFrame.mask)
-hdu.writeto('data/medium_mask.fits')
-(dataFrame.sorted_data).to_excel("data/medium.xlsx")  
+hdu.writeto('data/test/filemask.fits')
+(dataFrame.sorted_data).to_excel("data/test/file_plot.xlsx")  
 
-# %%
-data_a.magnitude_graph_cumu("data/medium.xlsx")
+# %% Analaysis
+
+data_a.magnitude_graph_cumu("data/test/file_plot.xlsx")
 #data_a.magnitude_graph_cumu("data/test_4std.xlsx")
 #data_a.magnitude_graph_cumu("data/test_5std.xlsx")
 #data_a.magnitude_graph("data/test_3std.xlsx")

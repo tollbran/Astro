@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import scipy as sp
 import pandas as pd
 import numpy as np
+
 def magnitude_graph_cumu(excel_file):
     data = pd.read_excel(excel_file)
     mag_column = data.loc[:,'Instrumental Magnitude']
@@ -16,35 +17,44 @@ def magnitude_graph_cumu(excel_file):
     sp.asarray(mag)
     print(mag)
     magn_counter = 0
-    euclid_sum = 0
     x =[]
     y=[]
     error = []
-    y1=[]
+    y_fit=[]
+    x_fit = []
     while magn_counter < 20:
         
         number_count = sp.count_nonzero(mag < magn_counter)
         x.append(magn_counter)
         y.append(sp.log10(number_count))
+        if 13 <= magn_counter <= 17: 
+            x_fit.append(magn_counter)
+            y_fit.append(sp.log10(number_count))
         #simple poisson statistics for now
         error.append(sp.log10(sp.sqrt(number_count)))
-        euclid_num = 0.6*magn_counter - 7.5
-        y1.append(euclid_num)
+        #euclid_num = 0.6*magn_counter - 7.5
         magn_counter += 0.5
     
+    fit,cov =sp.polyfit(x_fit,y_fit,deg=1,w=[1,1,1,1,1,1,1,1,1],cov=True) 
+    func = sp.poly1d(fit)
     sp.asarray(x)
     sp.asarray(y)
-    sp.asarray(y1)
-    print(error)
+    sp.asarray(x_fit)
+    sp.asarray(y_fit)
+    print(y_fit)
+    #print(error)
     sp.asarray(error)
     plt.scatter(x,y)
-    plt.plot(x,y1,color='r')
+    #plt.plot(x,y1,color='r')
+    plt.plot(x_fit,func(x_fit),color='r')
     #plt.errorbar(x,y,yerr=error)
     plt.grid()
     plt.xlabel('Magnitude m')
     plt.ylabel('log(N<m)')
     plt.ylim(-3, 6)
     plt.show()
+    print('Slope = %.3e' %(fit[0]))
+    return fit[0]
     
 
 def magnitude_graph(excel_file):
