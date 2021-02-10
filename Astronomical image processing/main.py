@@ -5,6 +5,7 @@ Created on Wed Jan 13 13:41:31 2021
 @author: Tolbran
 
 This is the main module to be run when wanting to analyse the data.
+Dependencies: Astropy, Skimage, Scipy/numpy, Matplotlib
 """
 # %% Intial imports
 import numpy as np
