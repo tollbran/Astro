@@ -3,9 +3,11 @@
 Created on Wed Jan 13 15:00:07 2021
 
 @author: Tolbran
+
+Stores all the image processing any analysis functions. Call with the main script.
 """
 
-from astropy.io import fits 
+
 import scipy as sp
 from skimage.draw import circle
 from skimage.draw import rectangle
@@ -22,7 +24,7 @@ class DataGeneration:
         self.raw_data = []
         self.apperture_points = []
         self.mask = sp.zeros((len(self.astro_flux),len(self.astro_flux[0])), dtype=int)
-        self.sorted_data = pd.DataFrame(columns=['Flux value','Instrumental Magnitude','x position','y position','Apperture radius'])
+        self.sorted_data = pd.DataFrame(columns=['Flux value','Mag Error','Instrumental Magnitude','x position','y position','Apperture radius'])
         #Set for cropping a image could remove these
         self.threshold = 6000 # cut off for deleting data
         self.background_flux = 3420 # settting it to this for now
@@ -129,7 +131,7 @@ class DataGeneration:
             y_counter +=1
         
             
-    def source_detection(self,no_std,app_radius):
+    def source_detection(self,no_std):
         
         '''
         Goes through a 1d array storing all the fluxes in the image in order. Finds the position of these fluxes in the file.
@@ -152,6 +154,7 @@ class DataGeneration:
                 x_cord = circ_center_pos[1][checker]
                 y_cord = circ_center_pos[0][checker] 
                 flux_value = 0
+                flux_error = 0
                 radius = 0
                 if 20 < y_cord < (len(self.astro_flux) -20): #Checking that we arent selecting items close to the border
                     if 20 < x_cord < (len(self.astro_flux[0])-20):
@@ -187,27 +190,28 @@ class DataGeneration:
                                                 current_pixel = self.background_flux + (random.random()*self.standard_error)
                                             else:
                                                 current_pixel = self.astro_flux[y_scan_start][x_scan_start]
+                                            
                                             flux_value += current_pixel
                                             self.apperture_points.append([y_scan_start,x_scan_start])
                                         
-                                        #print('Flux value: %d' % (flux_value))
                                         x_counter +=1
                                         x_scan_start +=1
                                         #print('Flux: %d, positon x: %d y: %d' %(self.astro_flux[y_scan_start][x_scan_start],x_scan_start+1,y_scan_start+1))
                                         
                                     y_counter+=1
                                     y_scan_start -=1
-                                #print('Apperture size: %d Pixel Count: %d' % (apperture_pixel_size,pixel_count))
                                 #Sets the start points in the data file for the 'scan')
                                 #Finds background flux
                                 self.apperture_size = apperture_pixel_size
                                 average_flux = (flux_value - (apperture_pixel_size * self.background_flux))
-                                if radius > 0:
+                                if radius > 2:
                                     if average_flux > 0:
+                                        flux_error = sp.sqrt(average_flux)
+                                        mag_error = sp.log10(flux_error)
                                         #Removing fluctuations
                                         mag = -2.5*sp.log10(average_flux) +25.3
                                         #Stores the data in a panda dataframe.
-                                        self.sorted_data.loc[-1] =  [average_flux,mag,x_cord+1,y_cord+1,radius]
+                                        self.sorted_data.loc[-1] =  [average_flux,mag_error,mag,x_cord+1,y_cord+1,radius]
                                         self.sorted_data.index =  self.sorted_data.index + 1  
                                         self.sorted_data =  self.sorted_data.sort_index()
                                         entries +=1

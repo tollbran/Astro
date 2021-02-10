@@ -12,8 +12,6 @@ import histogram_gen as histo
 import random
 import data_analysis as data_a
 from astropy.io import fits 
-import os
-
 
 # %% Test 1: testing the method that opens fits file and saves to 2D array.
 
@@ -332,9 +330,13 @@ hdu = fits.PrimaryHDU(dataFrame.mask)
 hdu.writeto('data/test/test16A/mask.fits')
 (dataFrame.sorted_data).to_excel("data/test/test16A/sorted_data.xlsx")
 data_a.magnitude_graph_cumu("data/test/test16A/sorted_data.xlsx")
-#Pass get a result of approx 0.062, considering the shape of the source is square, this flucation is epxected.
 
+#Pass get a result of approx 0.62, considering the shape of the source is square, this flucation is epxected.
 #%% test 16 B: Scattering the sources at random
+
+'''
+Pass condittion: Should aim to expect a value of approx 0.6 if system works correctly.
+'''
 
 #gausian generation
 x, y = sp.meshgrid(sp.linspace(-1,1,10), sp.linspace(-1,1,10))
@@ -384,8 +386,12 @@ hdu.writeto('data/test/test16B/mask.fits')
 (dataFrame.sorted_data).to_excel("data/test/test16B/sorted_data.xlsx")
 data_a.magnitude_graph_cumu("data/test/test16B/sorted_data.xlsx")
 
+#Pass get a value simmilar to above test.
 #%% test 16 C: Scattering the sources at random with random radius
 
+'''
+Pass condittion: Should aim to expect a value of approx 0.6 if system works correctly.
+'''
 import scipy as sp
 from skimage.draw import circle
 import data_open as dataf
@@ -393,15 +399,22 @@ import histogram_gen as histo
 import random
 import data_analysis as data_a
 from astropy.io import fits 
-import os
 
 #magnitudes to be generated in gaussian form
 mag = sp.array([12,13,14,15,16])
 flux = 10**((mag - 25.3)/-2.5)
 
+grad_set = 3
 files = sp.zeros((4000,2000))
-counts = [4,16,63,250,1000]
- 
+#For 0.6
+#counts = [4,16,63,250,1000]
+#For 0.5
+#counts =[5,16,50,160,500]
+#For 0.4
+#counts=[6,16,40,100,250]
+#For 0.3
+counts=[40,80,160,320,631]
+
 def makeGaussian(size, fwhm, center=None):
     """ Make a square gaussian kernel.
 
@@ -421,13 +434,12 @@ def makeGaussian(size, fwhm, center=None):
 
     return sp.exp(-4*sp.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
-count = 0
-gradient = []
-while count < 50:
+count = 5
+
+while count < 20:
     mag = sp.array([12,13,14,15,16])
     flux = 10**((mag - 25.3)/-2.5)
     files = sp.zeros((4000,2000))
-    counts = [4,16,63,250,1000]
     mag_counter = 0
     while mag_counter < len(counts):
         no_entries = 0
@@ -456,20 +468,85 @@ while count < 50:
         
     files = files + 3420
     hdu = fits.PrimaryHDU(files)
-    hdu.writeto('data/test/test16C/data%d.fits' % (count))
+    hdu.writeto('data/test/test16C/data%d_%d.fits' % (count,grad_set))
     
     
     no_std = 3
-    dataFrame = dataf.DataGeneration(fits.open('data/test/test16C/data%d.fits' % (count)))
+    dataFrame = dataf.DataGeneration(fits.open('data/test/test16C/data%d_%d.fits' % (count,grad_set)))
     dataFrame.source_detection(no_std,10)
     #hdu = fits.PrimaryHDU(dataFrame.mask)
     #hdu.writeto('data/test/test16C/mask.fits')
-    (dataFrame.sorted_data).to_excel("data/test/test16C/file_test%d.xlsx" % (count))
+    (dataFrame.sorted_data).to_excel('data/test/test16C/file_test%d_%d.xlsx' % (count,grad_set))
+    count +=1
+
+#Fail get a value 0.04 away from the expected value. This will allow us to quantify the bias in our system
+#%% Analysis and graphs for test 16C
+
+import scipy as sp
+from skimage.draw import circle
+import data_open as dataf
+import histogram_gen as histo
+import random
+import data_analysis as data_a
+from astropy.io import fits 
+import pandas as pd
+import matplotlib.pyplot as plt
+
+count=0
+gradient = []
+grad_set=3
+while count < 50:
+    data = pd.read_excel("data/test/test16C/file_test%d.xlsx" % (count))
+    mag_column = data.loc[:,'Instrumental Magnitude']
+    mag = mag_column.values
+    sp.asarray(mag)
+    magn_counter = 0
+    y_fit=[]
+    x_fit = []
+    while magn_counter < 20:
+        number_count = sp.count_nonzero(mag < magn_counter)
+        if 13 <= magn_counter <= 17: 
+            x_fit.append(magn_counter)
+            y_fit.append(sp.log10(number_count))
+        
+        #simple poisson statistics for now
+        #euclid_num = 0.6*magn_counter - 7.5
+        magn_counter += 1
     
-    gradient.append(data_a.magnitude_graph_cumu("data/test/test16C/file_test%d.xlsx" % (count)))
+    fit,cov =sp.polyfit(x_fit,y_fit,deg=1,w=sp.array([1,1,1,1,1]),cov=True) 
+    func = sp.poly1d(fit)
+    gradient.append(sp.asarray(fit[0]))
     count +=1
 
 grad = sp.asarray(gradient)
+
+df1 = pd.DataFrame([gradient],
+                   index=['gradient'])
+df1.to_excel("output.xlsx")  
+
 print(sp.mean(grad))
-# %%
+print(sp.std(grad))
 histo.gen_histogram(grad)
+
+#%% Plotting the expected and outputted gradients for the dsitributions in Test 16C:
+import matplotlib.pyplot as plt
+
+x_plot=sp.array([0,0.6,0.4,0.5,0.3])
+x=sp.array([0.6,0.4,0.5,0.3])
+x_comp=[0,0.6]
+y_comp=[0,0.6]
+y=sp.array([0.55,0.39,0.473,0.307])
+error= sp.array([0.02,0.011,0.012,0.01])
+fit,cov =sp.polyfit(x,y,deg=1,w=1/error,cov=True) 
+func = sp.poly1d(fit)
+plt.plot(x_plot,func(x_plot),color='k')
+plt.plot(x_comp,y_comp,color='grey',ls=':')
+plt.scatter(x,y,color='r',marker='.')
+plt.errorbar(x,y,yerr=error,capsize=2, elinewidth=0.5,fmt='.r')
+plt.axis([0,0.7,0,0.6])
+plt.xlabel('Gradient set in simulation')
+plt.ylabel('Gradient found by algorithm')
+plt.legend(['Fit obtained through simulation','Zero-bias fit'],loc=4)
+plt.grid()
+
+print('y-intercept is %d /pm %d' %(fit[0],cov[0,0]))
